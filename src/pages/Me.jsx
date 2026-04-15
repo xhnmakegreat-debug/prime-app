@@ -11,7 +11,7 @@ import PValueChart from '../components/PValueChart.jsx'
 
 const TODAY = new Date().toISOString().split('T')[0]
 
-export default function Me() {
+export default function Me({ onOpenGuide }) {
   const profile = getProfile()
   const notes   = getMeNotes()
   const history = getHistory()
@@ -311,6 +311,17 @@ export default function Me() {
             {selectedDate} 暂无记录
           </p>
         )}
+      </div>
+
+      {/* 使用指南入口 */}
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px' }}>
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '3px' }}>使用指南</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>关于 PRIME 的思想基础与使用方法</div>
+        </div>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onOpenGuide}>
+          查看指南
+        </button>
       </div>
 
       {/* 笔记历史 */}

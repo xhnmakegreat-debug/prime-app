@@ -1,6 +1,15 @@
-// Dev 环境通过 Vite proxy 解决 CORS；生产环境请使用 GLM 或 Ollama
-const ANTHROPIC_BASE = import.meta.env.DEV ? '/anthropic' : 'https://api.anthropic.com'
-const VOYAGE_BASE    = import.meta.env.DEV ? '/voyage'    : 'https://api.voyageai.com'
+// Electron 环境中 webSecurity:false，可直连 Anthropic/Voyage API
+// 浏览器 dev 模式下通过 Vite proxy（已移除 proxy 配置，如需浏览器调试请恢复）
+const isElectron = typeof window !== 'undefined'
+  && window.navigator.userAgent.toLowerCase().includes('electron')
+
+const ANTHROPIC_BASE = isElectron
+  ? 'https://api.anthropic.com'
+  : (import.meta.env.DEV ? '/anthropic' : 'https://api.anthropic.com')
+
+const VOYAGE_BASE = isElectron
+  ? 'https://api.voyageai.com'
+  : (import.meta.env.DEV ? '/voyage' : 'https://api.voyageai.com')
 
 export async function chat(messages, systemPrompt, config) {
   const { apiKey, anthropicChatModel } = config
@@ -53,5 +62,5 @@ export async function embed(text, config) {
   }
 
   const data = await res.json()
-  return data.data[0].embedding  // 1024-dim，已归一化
+  return data.data[0].embedding
 }

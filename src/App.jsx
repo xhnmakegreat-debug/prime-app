@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getSettings, getProfile, getQuestionnaire } from './lib/storage.js'
 import Layout from './components/Layout.jsx'
+import OnboardingGuide from './components/OnboardingGuide.jsx'
 import Setup from './pages/Setup.jsx'
 import Questionnaire from './pages/Questionnaire.jsx'
 import ProfileConfirm from './pages/ProfileConfirm.jsx'
@@ -12,12 +13,10 @@ import Me from './pages/Me.jsx'
 
 const TODAY = new Date().toISOString().split('T')[0]
 
-// 有侧边栏导航的页面
 const LAYOUT_PAGES = new Set(['dashboard', 'dailyPlan', 'dailyJournal', 'dailyReport', 'me', 'setup'])
 
 function resolveInitialPage() {
   const settings = getSettings()
-  // 未配置供应商 → 强制进入设置
   if (!settings.provider || settings.provider === '') return 'setup'
 
   const q = getQuestionnaire()
@@ -29,15 +28,24 @@ function resolveInitialPage() {
   return 'dashboard'
 }
 
-export default function App() {
-  const [page, setPage] = useState(resolveInitialPage)
-  const [date, setDate] = useState(TODAY)
+function shouldShowGuide() {
+  return localStorage.getItem('prime:onboarding:seen') !== 'true'
+}
 
-  // 应用主题
+export default function App() {
+  const [page,      setPage]      = useState(resolveInitialPage)
+  const [date,      setDate]      = useState(TODAY)
+  const [showGuide, setShowGuide] = useState(false)
+
+  // 应用主题 + 首次启动检测
   useEffect(() => {
     const settings = getSettings()
-    const theme    = settings.theme || 'dark'
-    document.documentElement.setAttribute('data-theme', theme)
+    document.documentElement.setAttribute('data-theme', settings.theme || 'dark')
+
+    // 首次进入 Setup 时不弹指南，其他情况下检测
+    if (resolveInitialPage() !== 'setup') {
+      setShowGuide(shouldShowGuide())
+    }
   }, [])
 
   function navigate(targetPage, targetDate) {
@@ -45,10 +53,24 @@ export default function App() {
     if (targetDate) setDate(targetDate)
   }
 
+  function handleCloseGuide() {
+    localStorage.setItem('prime:onboarding:seen', 'true')
+    setShowGuide(false)
+  }
+
   function renderPage() {
     switch (page) {
       case 'setup':
-        return <Setup onComplete={() => navigate('questionnaire')} />
+        return (
+          <Setup
+            onComplete={() => {
+              navigate('questionnaire')
+              // 完成配置后，如果还没看过指南就弹出
+              if (shouldShowGuide()) setShowGuide(true)
+            }}
+            isSettings={false}
+          />
+        )
 
       case 'questionnaire':
         return <Questionnaire onComplete={() => navigate('profileConfirm')} />
@@ -69,23 +91,27 @@ export default function App() {
         return <DailyReport date={date} navigate={navigate} />
 
       case 'me':
-        return <Me navigate={navigate} />
+        return <Me navigate={navigate} onOpenGuide={() => setShowGuide(true)} />
 
       default:
         return <Dashboard date={date} navigate={navigate} />
     }
   }
 
-  const showLayout = LAYOUT_PAGES.has(page)
-    && page !== 'setup'  // Setup 页面有自己的全屏布局
+  const showLayout = LAYOUT_PAGES.has(page) && page !== 'setup'
 
-  if (showLayout) {
-    return (
-      <Layout currentPage={page} navigate={navigate} date={date}>
-        {renderPage()}
-      </Layout>
-    )
-  }
+  return (
+    <>
+      {showLayout ? (
+        <Layout currentPage={page} navigate={navigate} date={date}>
+          {renderPage()}
+        </Layout>
+      ) : (
+        renderPage()
+      )}
 
-  return renderPage()
+      {/* 使用指南弹窗 */}
+      {showGuide && <OnboardingGuide onClose={handleCloseGuide} />}
+    </>
+  )
 }
