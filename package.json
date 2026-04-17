@@ -1,6 +1,7 @@
 {
   "name": "prime-app",
   "version": "2.0.0",
+  "license": "MIT",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
