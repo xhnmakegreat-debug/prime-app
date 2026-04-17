@@ -43,9 +43,14 @@
       "icon": "public/icon.ico"
     },
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ],
       "category": "public.app-category.productivity",
-      "icon": "public/icon.icns"
+      "icon": "public/icon.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "linux": {
       "target": [{ "target": "AppImage", "arch": ["x64"] }],
