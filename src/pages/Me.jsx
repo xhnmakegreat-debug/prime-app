@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   getProfile, setProfile, getMeNotes, addMeNote,
   getPlan, getJournal, getHistory, computeCumulativeP, getAllDates,
-  getSettings,
+  getSettings, clearHistory, clearJournalsAndPlans, clearAll,
 } from '../lib/storage.js'
 import { chat, parseLLMJson, embed } from '../lib/llm.js'
 import { buildPromptD } from '../lib/prompts/index.js'
@@ -324,6 +324,9 @@ export default function Me({ onOpenGuide }) {
         </button>
       </div>
 
+      {/* 数据管理 */}
+      <DataReset />
+
       {/* 笔记历史 */}
       {notes.length > 0 && (
         <div className="card">
@@ -341,6 +344,97 @@ export default function Me({ onOpenGuide }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+const CONFIRM_COPY = {
+  history:  { title: '确认清零 P 值历史？', body: '将清除所有 ΔP 记录和累计 P，图表归零。Profile 和日志内容保留。此操作不可撤销。' },
+  journals: { title: '确认清除日志与计划？', body: '将删除所有日期的日志条目和计划记录，P 值历史保留。此操作不可撤销。' },
+  all:      { title: '确认清除全部数据？', body: '将删除所有用户数据，包括 Profile、问卷、日志、计划和 P 值历史，应用回到初始状态。此操作不可撤销。' },
+}
+
+function DataReset() {
+  const [confirm, setConfirm] = useState(null) // 'history' | 'journals' | 'all'
+
+  function handleConfirm() {
+    if (confirm === 'history') clearHistory()
+    else if (confirm === 'journals') clearJournalsAndPlans()
+    else if (confirm === 'all') clearAll()
+    setConfirm(null)
+    window.location.reload()
+  }
+
+  const copy = confirm ? CONFIRM_COPY[confirm] : null
+
+  return (
+    <div className="card" style={{ borderColor: 'var(--border)' }}>
+      <div style={{ ...labelStyle, marginBottom: '16px' }}>数据管理</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <ResetRow
+          label="P 值历史清零"
+          desc="清除所有 ΔP 记录和累计 P，图表归零。Profile 和日志内容保留。"
+          onReset={() => setConfirm('history')}
+        />
+        <ResetRow
+          label="日志与计划清除"
+          desc="删除所有日期的日志条目和计划，P 值历史保留。"
+          onReset={() => setConfirm('journals')}
+        />
+        <ResetRow
+          label="清除全部数据，完全重来"
+          desc="删除所有用户数据，应用回到初始状态，重新走配置和问卷流程。"
+          onReset={() => setConfirm('all')}
+          danger
+        />
+      </div>
+
+      {/* 二次确认弹窗 */}
+      {confirm && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(3px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '360px',
+            background: 'var(--bg-elevated)', border: `1px solid ${confirm === 'all' ? 'var(--red)' : 'var(--border)'}`,
+            borderRadius: '14px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px',
+          }}>
+            <div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: confirm === 'all' ? 'var(--red)' : 'var(--text)', marginBottom: '8px' }}>
+                {copy.title}
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                {copy.body}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn btn-danger" style={{ flex: 1 }} onClick={handleConfirm}>确认清除</button>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setConfirm(null)}>取消</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ResetRow({ label, desc, onReset, danger = false }) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '12px 14px', background: danger ? 'var(--red-soft)' : 'var(--bg-elevated)',
+      borderRadius: '10px', border: `1px solid ${danger ? 'color-mix(in srgb, var(--red) 30%, transparent)' : 'var(--border)'}`, gap: '16px',
+    }}>
+      <div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: danger ? 'var(--red)' : 'var(--text)', marginBottom: '3px' }}>{label}</div>
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{desc}</div>
+      </div>
+      <button type="button" className="btn btn-sm" onClick={onReset}
+        style={{ flexShrink: 0, background: 'transparent', border: '1.5px solid var(--red)', color: 'var(--red)', borderRadius: '8px' }}>
+        清除
+      </button>
     </div>
   )
 }

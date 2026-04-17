@@ -17,7 +17,7 @@ const LAYOUT_PAGES = new Set(['dashboard', 'dailyPlan', 'dailyJournal', 'dailyRe
 
 function resolveInitialPage() {
   const settings = getSettings()
-  if (!settings.provider || settings.provider === '') return 'setup'
+  if (!settings.setupCompleted) return 'setup'
 
   const q = getQuestionnaire()
   if (!q.completed) return 'questionnaire'
@@ -60,17 +60,22 @@ export default function App() {
 
   function renderPage() {
     switch (page) {
-      case 'setup':
+      case 'setup': {
+        const isSettings = getSettings().setupCompleted
         return (
           <Setup
             onComplete={() => {
-              navigate('questionnaire')
-              // 完成配置后，如果还没看过指南就弹出
-              if (shouldShowGuide()) setShowGuide(true)
+              if (isSettings) {
+                navigate('dashboard')
+              } else {
+                navigate('questionnaire')
+                if (shouldShowGuide()) setShowGuide(true)
+              }
             }}
-            isSettings={false}
+            isSettings={isSettings}
           />
         )
+      }
 
       case 'questionnaire':
         return <Questionnaire onComplete={() => navigate('profileConfirm')} />

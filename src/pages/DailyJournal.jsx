@@ -71,21 +71,26 @@ export default function DailyJournal({ date = TODAY, navigate }) {
     setError(null)
 
     try {
-      let result
+      let delta_P, dot_score, embedding
       if (entry.text.trim()) {
         const entryVec = await embed(entry.text)
         const dimWeight = profile.dimensions?.[entry.dimension_idx]?.weight ?? 1
-        result = computeDeltaP(entryVec, profile.embedding, entry.user_rating, settings.alpha, entry.duration_hours, dimWeight)
-        result.embedding = entryVec
+        const result = computeDeltaP(entryVec, profile.embedding, entry.user_rating, settings.alpha, entry.duration_hours, dimWeight)
+        delta_P = result.deltaP
+        dot_score = result.dotScore
+        embedding = entryVec
       } else {
         const dimWeight = profile.dimensions?.[entry.dimension_idx]?.weight ?? 1
-        result = computeDeltaPFromRating(entry.user_rating, entry.duration_hours, dimWeight)
+        const result = computeDeltaPFromRating(entry.user_rating, entry.duration_hours, dimWeight)
+        delta_P = result.deltaP
+        dot_score = null
+        embedding = null
       }
 
-      const gap = result.dotScore !== null ? gapAnalysis(result.dotScore, entry.user_rating) : null
+      const gap = dot_score !== null ? gapAnalysis(dot_score, entry.user_rating) : null
 
       const updated = entries.map((e, idx) =>
-        idx === i ? { ...e, ...result, gap } : e
+        idx === i ? { ...e, delta_P, dot_score, embedding, gap } : e
       )
       setEntries(updated)
       saveToStorage(updated)

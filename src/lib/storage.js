@@ -26,13 +26,13 @@ function safeSet(key, val) {
 // ── Settings ──
 export function getSettings() {
   return safeGet(K.SETTINGS, {
-    provider: import.meta.env.VITE_PROVIDER || 'glm',
-    apiKey: import.meta.env.VITE_GLM_API_KEY || '',
-    voyageApiKey: import.meta.env.VITE_VOYAGE_API_KEY || '',
-    ollamaBaseUrl: import.meta.env.VITE_OLLAMA_BASE_URL || 'http://localhost:11434',
+    provider: 'glm',
+    apiKey: '',
+    voyageApiKey: '',
+    ollamaBaseUrl: 'http://localhost:11434',
     ollamaChatModel: 'qwen2.5:7b',
     ollamaEmbedModel: 'nomic-embed-text',
-    alpha: parseFloat(import.meta.env.VITE_ALPHA || '0.7'),
+    alpha: 0.7,
     theme: 'dark',
   })
 }
@@ -119,6 +119,18 @@ export function addMeNote(note) {
 export function clearAll() {
   Object.keys(localStorage)
     .filter((k) => k.startsWith('prime:'))
+    .forEach((k) => localStorage.removeItem(k))
+}
+
+// ── 清零 P 值历史 ──
+export function clearHistory() {
+  localStorage.removeItem(K.HISTORY)
+}
+
+// ── 清除所有日志与计划记录 ──
+export function clearJournalsAndPlans() {
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith('prime:journals:') || k.startsWith('prime:plans:'))
     .forEach((k) => localStorage.removeItem(k))
 }
 

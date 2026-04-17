@@ -36,11 +36,21 @@ export async function embed(text) {
  * @returns {any}
  */
 export function parseLLMJson(raw) {
+  // 先尝试直接解析
+  try { return JSON.parse(raw.trim()) } catch {}
+
+  // 去除 markdown 代码块后再试
   const stripped = raw
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/```\s*$/, '')
+    .replace(/^```(?:json)?\s*/im, '')
+    .replace(/```\s*$/m, '')
     .trim()
-  return JSON.parse(stripped)
+  try { return JSON.parse(stripped) } catch {}
+
+  // 从文本中提取第一个完整的 {...} 或 [...] 块
+  const match = stripped.match(/([\[{][\s\S]*[\]}])/)
+  if (match) return JSON.parse(match[1])
+
+  throw new SyntaxError(`无法从 LLM 响应中提取 JSON：${raw.slice(0, 200)}`)
 }
 
 /**

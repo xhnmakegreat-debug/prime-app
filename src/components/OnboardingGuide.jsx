@@ -1,5 +1,22 @@
 import { useState } from 'react'
 
+const bodyStyle = {
+  fontSize: '14px',
+  color: 'var(--text-secondary)',
+  lineHeight: 1.8,
+}
+
+const quoteStyle = {
+  padding: '14px 18px',
+  borderLeft: '3px solid var(--accent)',
+  background: 'var(--accent-soft)',
+  borderRadius: '0 8px 8px 0',
+  fontSize: '14px',
+  color: 'var(--accent-text)',
+  lineHeight: 1.7,
+  fontStyle: 'italic',
+}
+
 const PAGES = [
   {
     tag: '01 / 缘起',
@@ -313,21 +330,4 @@ export default function OnboardingGuide({ onClose }) {
       </div>
     </div>
   )
-}
-
-const bodyStyle = {
-  fontSize: '14px',
-  color: 'var(--text-secondary)',
-  lineHeight: 1.8,
-}
-
-const quoteStyle = {
-  padding: '14px 18px',
-  borderLeft: '3px solid var(--accent)',
-  background: 'var(--accent-soft)',
-  borderRadius: '0 8px 8px 0',
-  fontSize: '14px',
-  color: 'var(--accent-text)',
-  lineHeight: 1.7,
-  fontStyle: 'italic',
 }

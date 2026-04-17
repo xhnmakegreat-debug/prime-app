@@ -57,8 +57,7 @@ export default function Questionnaire({ onComplete }) {
       setMessages(updated)
       setQuestionnaire({ messages: updated, completed: false })
     } else {
-      // 全部回答完毕，生成 Profile
-      await generateProfile(newMsgs)
+      // 全部回答完毕，等待用户点击提交
     }
   }
 
@@ -102,7 +101,7 @@ export default function Questionnaire({ onComplete }) {
           PRIME
         </h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: 4 }}>
-          问题 {Math.min(answered + 1, QUESTIONS.length)} / {QUESTIONS.length}
+          {answered < QUESTIONS.length ? `问题 ${answered + 1} / ${QUESTIONS.length}` : `全部完成 ${QUESTIONS.length} / ${QUESTIONS.length}`}
         </p>
         {/* 进度条 */}
         <div style={{ marginTop: 8, height: 3, background: 'var(--border)', borderRadius: 2 }}>
@@ -110,7 +109,7 @@ export default function Questionnaire({ onComplete }) {
             height: '100%',
             borderRadius: 2,
             background: 'var(--accent)',
-            width: `${(answered / QUESTIONS.length) * 100}%`,
+            width: `${(Math.min(answered, QUESTIONS.length) / QUESTIONS.length) * 100}%`,
             transition: 'width 0.4s ease',
           }} />
         </div>
@@ -164,6 +163,23 @@ export default function Questionnaire({ onComplete }) {
 
         <div ref={endRef} />
       </div>
+
+      {/* 全部回答完毕后的提交按钮 */}
+      {!currentQ && !generating && (
+        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
+            五个问题已全部回答完毕。
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => generateProfile(messages)}
+            style={{ width: '100%' }}
+          >
+            生成 Prime Profile →
+          </button>
+        </div>
+      )}
 
       {/* 输入区 */}
       {currentQ && !generating && (

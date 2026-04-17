@@ -20,8 +20,8 @@ export default function Setup({ onComplete, isSettings = false }) {
 
   const current = providers.find((p) => p.id === provider)
 
-  function save() {
-    setSettings({ provider, apiKey, voyageApiKey, ollamaBaseUrl, ollamaChatModel, ollamaEmbedModel, alpha })
+  function save(markCompleted = false) {
+    setSettings({ provider, apiKey, voyageApiKey, ollamaBaseUrl, ollamaChatModel, ollamaEmbedModel, alpha, ...(markCompleted ? { setupCompleted: true } : {}) })
   }
 
   async function testConnection() {
@@ -40,7 +40,7 @@ export default function Setup({ onComplete, isSettings = false }) {
 
   function handleSubmit(e) {
     e.preventDefault()
-    save()
+    save(!isSettings)
     onComplete()
   }
 
