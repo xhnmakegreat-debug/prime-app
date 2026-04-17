@@ -5,7 +5,7 @@
   "author": "xhnmakegreat",
   "description": "存在主义日志 · 本地优先 AI 日志应用",
   "type": "module",
-  "main": "electron/main.js",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
@@ -35,7 +35,7 @@
     },
     "files": [
       "dist/**/*",
-      "electron/**/*",
+      "electron/*.cjs",
       "package.json"
     ],
     "win": {

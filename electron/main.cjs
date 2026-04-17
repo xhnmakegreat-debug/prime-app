@@ -11,7 +11,7 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: '#1e1e1e',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       webSecurity: false,       // 允许 Anthropic/Voyage 直连，无 CORS 限制
       contextIsolation: true,
       nodeIntegration: false,
