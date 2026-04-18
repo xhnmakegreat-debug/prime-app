@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   getJournal, setJournal,
   getPlan, getProfile, getSettings,
   upsertHistoryEntry, getHistory, computeCumulativeP,
 } from '../lib/storage.js'
-import { embed, checkEmbedCompatibility } from '../lib/llm.js'
+import { embed, chat, checkEmbedCompatibility } from '../lib/llm.js'
 import {
   computeDeltaP, computeDeltaPFromRating,
   gapAnalysis, formatDeltaP, pColorClass,
 } from '../lib/scoring.js'
+import { parseAttachment, validateFile } from '../lib/attachments.js'
 import SelfRatingButtons from '../components/SelfRatingButtons.jsx'
 
 const TODAY = new Date().toISOString().split('T')[0]
@@ -26,15 +27,47 @@ export default function DailyJournal({ date = TODAY, navigate }) {
   const settings = getSettings()
 
   const [entries, setEntries] = useState(
-    saved?.entries || [{ text: '', user_rating: null, embedding: null, dot_score: null, delta_P: null, dimension_idx: 0, duration_hours: 1 }]
+    saved?.entries || [{ text: '', user_rating: null, embedding: null, dot_score: null, delta_P: null, dimension_idx: 0, duration_hours: 1, attachments: [], attachment_analysis: null }]
   )
-  const [scoring,  setScoring]  = useState(null)  // index of entry being scored
-  const [error,    setError]    = useState(null)
+  const [scoring,    setScoring]    = useState(null)  // index of entry being scored
+  const [uploading,  setUploading]  = useState(null)  // index of entry uploading
+  const [scoringMsg, setScoringMsg] = useState('')
+  const [error,      setError]      = useState(null)
+  const fileInputRefs = useRef({})
 
   const compat = checkEmbedCompatibility(profile)
 
   function addEntry() {
-    setEntries([...entries, { text: '', user_rating: null, embedding: null, dot_score: null, delta_P: null, dimension_idx: 0, duration_hours: 1 }])
+    setEntries([...entries, { text: '', user_rating: null, embedding: null, dot_score: null, delta_P: null, dimension_idx: 0, duration_hours: 1, attachments: [], attachment_analysis: null }])
+  }
+
+  async function handleFiles(i, files) {
+    setUploading(i)
+    setError(null)
+    try {
+      const parsed = []
+      for (const file of files) {
+        const attachment = await parseAttachment(file)
+        parsed.push(attachment)
+      }
+      const updated = entries.map((e, idx) =>
+        idx === i ? { ...e, attachments: [...(e.attachments || []), ...parsed] } : e
+      )
+      setEntries(updated)
+      saveToStorage(updated)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setUploading(null)
+    }
+  }
+
+  function removeAttachment(entryIdx, attachmentId) {
+    const updated = entries.map((e, idx) =>
+      idx === entryIdx ? { ...e, attachments: (e.attachments || []).filter((a) => a.id !== attachmentId) } : e
+    )
+    setEntries(updated)
+    saveToStorage(updated)
   }
 
   function updateEntry(i, field, value) {
@@ -68,18 +101,36 @@ export default function DailyJournal({ date = TODAY, navigate }) {
     if (!compat.ok) { setError(`供应商已切换（当前 ${compat.current}，Profile 由 ${compat.profileProvider} 生成），请在"我的"页面重新锁定 Profile`); return }
 
     setScoring(i)
+    setScoringMsg('')
     setError(null)
 
     try {
-      let delta_P, dot_score, embedding
-      if (entry.text.trim()) {
-        const entryVec = await embed(entry.text)
+      let delta_P, dot_score, embedding, attachment_analysis = entry.attachment_analysis
+
+      // Analyze attachments via LLM if present and not yet analyzed
+      const attachments = entry.attachments || []
+      if (attachments.length && !attachment_analysis) {
+        setScoringMsg('分析附件中…')
+        const systemPrompt = '你是一个日志分析助手。请简洁描述用户上传的附件内容，提取关键信息用于日志记录分析。'
+        const userMsg = `请分析以下附件并描述其主要内容（100字以内）。`
+        attachment_analysis = await chat(
+          [{ role: 'user', content: userMsg }],
+          systemPrompt,
+          attachments.map((a) => ({ type: a.type, mime: a.mime, data: a.data, name: a.name }))
+        )
+      }
+
+      setScoringMsg('计算中…')
+      const textForEmbed = [entry.text, attachment_analysis].filter(Boolean).join('\n\n')
+
+      if (textForEmbed.trim()) {
+        const entryVec = await embed(textForEmbed)
         const dimWeight = profile.dimensions?.[entry.dimension_idx]?.weight ?? 1
         const result = computeDeltaP(entryVec, profile.embedding, entry.user_rating, settings.alpha, entry.duration_hours, dimWeight)
         delta_P = result.deltaP
         dot_score = result.dotScore
         embedding = entryVec
-      } else {
+      } else if (!textForEmbed.trim()) {
         const dimWeight = profile.dimensions?.[entry.dimension_idx]?.weight ?? 1
         const result = computeDeltaPFromRating(entry.user_rating, entry.duration_hours, dimWeight)
         delta_P = result.deltaP
@@ -90,7 +141,7 @@ export default function DailyJournal({ date = TODAY, navigate }) {
       const gap = dot_score !== null ? gapAnalysis(dot_score, entry.user_rating) : null
 
       const updated = entries.map((e, idx) =>
-        idx === i ? { ...e, delta_P, dot_score, embedding, gap } : e
+        idx === i ? { ...e, delta_P, dot_score, embedding, gap, attachment_analysis } : e
       )
       setEntries(updated)
       saveToStorage(updated)
@@ -98,6 +149,7 @@ export default function DailyJournal({ date = TODAY, navigate }) {
       setError(`评分失败：${e.message}`)
     } finally {
       setScoring(null)
+      setScoringMsg('')
     }
   }
 
@@ -184,15 +236,63 @@ export default function DailyJournal({ date = TODAY, navigate }) {
             />
           </div>
 
+          {/* 附件上传区 */}
+          <div>
+            <label style={labelStyle}>附件（图片 / PDF / Word）</label>
+            <div
+              style={dropZoneStyle}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); handleFiles(i, [...e.dataTransfer.files]) }}
+              onClick={() => fileInputRefs.current[i]?.click()}
+            >
+              {uploading === i
+                ? <><span className="spinner" style={{ width: 14, height: 14 }} /> 解析中…</>
+                : <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>拖拽文件或点击上传</span>
+              }
+            </div>
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx"
+              multiple
+              style={{ display: 'none' }}
+              ref={(el) => { fileInputRefs.current[i] = el }}
+              onChange={(e) => { handleFiles(i, [...e.target.files]); e.target.value = '' }}
+            />
+
+            {(entry.attachments || []).length > 0 && (
+              <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {(entry.attachments || []).map((att) => (
+                  <div key={att.id} style={attachmentTagStyle}>
+                    <span>{att.type === 'image' ? '🖼' : att.type === 'pdf' ? '📄' : '📝'} {att.name}</span>
+                    <button
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1 }}
+                      onClick={() => removeAttachment(i, att.id)}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {entry.attachment_analysis && (
+              <details style={{ marginTop: '8px' }}>
+                <summary style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>附件分析结果</summary>
+                <p style={{ fontSize: '13px', marginTop: '6px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{entry.attachment_analysis}</p>
+              </details>
+            )}
+          </div>
+
           {/* 评分按钮 */}
           <button
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={() => scoreEntry(i)}
-            disabled={scoring === i || entry.user_rating === null}
+            disabled={scoring === i || uploading === i || entry.user_rating === null}
             style={{ alignSelf: 'flex-start' }}
           >
-            {scoring === i ? <><span className="spinner" style={{ width: 14, height: 14 }} /> 计算中…</> : entry.delta_P !== null ? '重新评分' : '计算 ΔP'}
+            {scoring === i
+              ? <><span className="spinner" style={{ width: 14, height: 14 }} /> {scoringMsg || '计算中…'}</>
+              : entry.delta_P !== null ? '重新评分' : '计算 ΔP'
+            }
           </button>
 
           {/* 评分结果 */}
@@ -267,6 +367,26 @@ export default function DailyJournal({ date = TODAY, navigate }) {
 function avg(arr) {
   if (!arr.length) return null
   return arr.reduce((s, v) => s + v, 0) / arr.length
+}
+
+const dropZoneStyle = {
+  border: '1.5px dashed var(--border)',
+  borderRadius: '8px',
+  padding: '12px 16px',
+  cursor: 'pointer',
+  textAlign: 'center',
+  transition: 'border-color 0.15s',
+}
+
+const attachmentTagStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '5px 10px',
+  borderRadius: '6px',
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  fontSize: '13px',
 }
 
 const labelStyle = {

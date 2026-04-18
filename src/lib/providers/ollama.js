@@ -4,7 +4,7 @@ function normalize(vec) {
   return vec.map((x) => x / norm)
 }
 
-export async function chat(messages, systemPrompt, config) {
+export async function chat(messages, systemPrompt, config, attachments = []) {
   const base  = config.ollamaBaseUrl || 'http://localhost:11434'
   const model = config.ollamaChatModel || 'qwen2.5:7b'
 
@@ -15,7 +15,7 @@ export async function chat(messages, systemPrompt, config) {
       model,
       messages: [
         { role: 'system', content: systemPrompt },
-        ...messages,
+        ...buildOllamaMessages(messages, attachments),
       ],
       stream: false,
     }),
@@ -28,6 +28,23 @@ export async function chat(messages, systemPrompt, config) {
 
   const data = await res.json()
   return data.message.content
+}
+
+// Ollama doesn't support vision — images dropped, docs injected as text
+function buildOllamaMessages(messages, attachments) {
+  if (!attachments.length) return messages
+
+  const docText = attachments
+    .filter((a) => a.type !== 'image')
+    .map((a) => `[${a.name}]\n${a.data}`)
+    .join('\n\n')
+
+  if (!docText) return messages
+
+  return messages.map((msg, i) => {
+    if (i !== messages.length - 1 || msg.role !== 'user') return msg
+    return { ...msg, content: docText + '\n\n' + msg.content }
+  })
 }
 
 export async function embed(text, config) {

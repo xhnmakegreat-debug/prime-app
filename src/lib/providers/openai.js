@@ -3,7 +3,7 @@
 
 const BASE = 'https://api.openai.com'
 
-export async function chat(messages, systemPrompt, config) {
+export async function chat(messages, systemPrompt, config, attachments = []) {
   const { apiKey, openaiChatModel } = config
   const model = openaiChatModel || 'gpt-4o-mini'
 
@@ -17,7 +17,7 @@ export async function chat(messages, systemPrompt, config) {
       model,
       messages: [
         { role: 'system', content: systemPrompt },
-        ...messages,
+        ...buildOpenAIMessages(messages, attachments),
       ],
     }),
   })
@@ -29,6 +29,25 @@ export async function chat(messages, systemPrompt, config) {
 
   const data = await res.json()
   return data.choices[0].message.content
+}
+
+function buildOpenAIMessages(messages, attachments) {
+  if (!attachments.length) return messages
+
+  const imageBlocks = attachments
+    .filter((a) => a.type === 'image')
+    .map((a) => ({ type: 'image_url', image_url: { url: `data:${a.mime};base64,${a.data}` } }))
+
+  const docText = attachments
+    .filter((a) => a.type !== 'image')
+    .map((a) => `[${a.name}]\n${a.data}`)
+    .join('\n\n')
+
+  return messages.map((msg, i) => {
+    if (i !== messages.length - 1 || msg.role !== 'user') return msg
+    const textBlock = { type: 'text', text: (docText ? docText + '\n\n' : '') + msg.content }
+    return { role: 'user', content: [...imageBlocks, textBlock] }
+  })
 }
 
 export async function embed(text, config) {

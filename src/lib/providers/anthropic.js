@@ -11,9 +11,15 @@ const VOYAGE_BASE = isElectron
   ? 'https://api.voyageai.com'
   : (import.meta.env.DEV ? '/voyage' : 'https://api.voyageai.com')
 
-export async function chat(messages, systemPrompt, config) {
+export async function chat(messages, systemPrompt, config, attachments = []) {
   const { apiKey, anthropicChatModel } = config
-  const model = anthropicChatModel || 'claude-3-5-haiku-20241022'
+  const hasImages = attachments.some((a) => a.type === 'image')
+  const model = hasImages
+    ? 'claude-3-5-sonnet-20241022'
+    : (anthropicChatModel || 'claude-3-5-haiku-20241022')
+
+  // Build last user message with optional image blocks
+  const builtMessages = buildAnthropicMessages(messages, attachments)
 
   const res = await fetch(`${ANTHROPIC_BASE}/v1/messages`, {
     method: 'POST',
@@ -27,7 +33,7 @@ export async function chat(messages, systemPrompt, config) {
       model,
       max_tokens: 2048,
       system: systemPrompt,
-      messages,
+      messages: builtMessages,
     }),
   })
 
@@ -38,6 +44,25 @@ export async function chat(messages, systemPrompt, config) {
 
   const data = await res.json()
   return data.content[0].text
+}
+
+function buildAnthropicMessages(messages, attachments) {
+  if (!attachments.length) return messages
+
+  const imageBlocks = attachments
+    .filter((a) => a.type === 'image')
+    .map((a) => ({ type: 'image', source: { type: 'base64', media_type: a.mime, data: a.data } }))
+
+  const docText = attachments
+    .filter((a) => a.type !== 'image')
+    .map((a) => `[${a.name}]\n${a.data}`)
+    .join('\n\n')
+
+  return messages.map((msg, i) => {
+    if (i !== messages.length - 1 || msg.role !== 'user') return msg
+    const textBlock = { type: 'text', text: (docText ? docText + '\n\n' : '') + msg.content }
+    return { role: 'user', content: [...imageBlocks, textBlock] }
+  })
 }
 
 export async function embed(text, config) {

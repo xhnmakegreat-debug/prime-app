@@ -7,10 +7,12 @@ import { getSettings } from './storage.js'
  * @param {string} systemPrompt
  * @returns {Promise<string>}
  */
-export async function chat(messages, systemPrompt) {
+// attachments: Array<{ type: 'image'|'pdf'|'word', mime: string, data: string }>
+// data is base64 for images, extracted text for pdf/word
+export async function chat(messages, systemPrompt, attachments = []) {
   const settings = getSettings()
   const { adapter } = getProvider(settings.provider)
-  return adapter.chat(messages, systemPrompt, settings)
+  return adapter.chat(messages, systemPrompt, settings, attachments)
 }
 
 /**

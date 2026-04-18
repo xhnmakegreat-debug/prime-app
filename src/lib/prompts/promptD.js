@@ -30,6 +30,7 @@ export function build({ currentProfile, userNotes }) {
 当前 Prime Profile：
 ${profileJson}
 
+输出语言必须与用户提交的笔记语言一致，JSON 键名不变，只改字符串值的语言。
 输出更新后的完整 JSON，不包含任何其他内容：
 {
   "core_identity": "...",

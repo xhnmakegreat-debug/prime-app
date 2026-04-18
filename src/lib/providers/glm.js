@@ -1,8 +1,8 @@
 const BASE = 'https://open.bigmodel.cn/api/paas/v4'
 
-export async function chat(messages, systemPrompt, config) {
+export async function chat(messages, systemPrompt, config, attachments = []) {
   const { apiKey, glmChatModel } = config
-  const model = glmChatModel || 'glm-4-flash'
+  const model = glmChatModel || 'glm-4v'
 
   const res = await fetch(`${BASE}/chat/completions`, {
     method: 'POST',
@@ -14,7 +14,7 @@ export async function chat(messages, systemPrompt, config) {
       model,
       messages: [
         { role: 'system', content: systemPrompt },
-        ...messages,
+        ...buildGLMMessages(messages, attachments),
       ],
     }),
   })
@@ -26,6 +26,26 @@ export async function chat(messages, systemPrompt, config) {
 
   const data = await res.json()
   return data.choices[0].message.content
+}
+
+// GLM-4V uses same format as OpenAI vision
+function buildGLMMessages(messages, attachments) {
+  if (!attachments.length) return messages
+
+  const imageBlocks = attachments
+    .filter((a) => a.type === 'image')
+    .map((a) => ({ type: 'image_url', image_url: { url: `data:${a.mime};base64,${a.data}` } }))
+
+  const docText = attachments
+    .filter((a) => a.type !== 'image')
+    .map((a) => `[${a.name}]\n${a.data}`)
+    .join('\n\n')
+
+  return messages.map((msg, i) => {
+    if (i !== messages.length - 1 || msg.role !== 'user') return msg
+    const textBlock = { type: 'text', text: (docText ? docText + '\n\n' : '') + msg.content }
+    return { role: 'user', content: [...imageBlocks, textBlock] }
+  })
 }
 
 export async function embed(text, config) {

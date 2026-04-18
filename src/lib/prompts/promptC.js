@@ -10,6 +10,7 @@ export function build({ entries, profile, date, totalDeltaP }) {
 你的任务：陈述数据显示了什么，给出一个观察，给出一个建议。
 规则：不提供赞美，不进行道德评价，不使用励志语言，不使用"你很棒"之类表述。
 
+输出语言必须与用户日志条目的语言一致，JSON 键名不变，只改字符串值的语言。
 输出严格 JSON，不包含任何其他内容：
 {
   "today_delta_P": number,
