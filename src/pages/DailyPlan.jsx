@@ -1,8 +1,8 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getPlan, setPlan, getProfile } from '../lib/storage.js'
 import { chat, parseLLMJson } from '../lib/llm.js'
 import { buildPromptB } from '../lib/prompts/index.js'
-import { levelToNumber } from '../lib/scoring.js'
 
 const LEVEL_COLOR = {
   '+3': '#10b981', '+2': '#34d399', '+1': '#86efac',
@@ -13,6 +13,7 @@ const LEVEL_COLOR = {
 const TODAY = new Date().toISOString().split('T')[0]
 
 export default function DailyPlan({ date = TODAY, navigate }) {
+  const { t } = useTranslation()
   const saved = getPlan(date)
   const [actions,  setActions]  = useState(saved?.actions || [{ text: '', duration_hours: 1, level: null, annotation: null }])
   const [grading,  setGrading]  = useState(false)
@@ -38,16 +39,16 @@ export default function DailyPlan({ date = TODAY, navigate }) {
     const validActions = actions.filter((a) => a.text.trim())
     if (!validActions.length) return
     const profile = getProfile()
-    if (!profile) { setError('未找到 Prime Profile，请先完成问卷'); return }
+    if (!profile) { setError(t('plan.error_no_profile')); return }
 
     setGrading(true)
     setError(null)
     try {
       const { system, userMessage } = buildPromptB({ actions: validActions, profile })
       const raw = await chat([{ role: 'user', content: userMessage }], system)
-      const grades = parseLLMJson(raw)  // [{level, annotation}]
+      const grades = parseLLMJson(raw)
 
-      const updated = actions.map((a, i) => {
+      const updated = actions.map((a) => {
         if (!a.text.trim()) return a
         const g = grades[validActions.indexOf(a)]
         return g ? { ...a, level: g.level, annotation: g.annotation } : a
@@ -56,7 +57,7 @@ export default function DailyPlan({ date = TODAY, navigate }) {
       setGraded(true)
       setPlan(date, { date, actions: updated })
     } catch (e) {
-      setError(`分级失败：${e.message}`)
+      setError(t('plan.error_grade', { msg: e.message }))
     } finally {
       setGrading(false)
     }
@@ -71,11 +72,11 @@ export default function DailyPlan({ date = TODAY, navigate }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 700 }}>今日计划</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{t('plan.title')}</h1>
           <span className="mono text-muted" style={{ fontSize: '13px' }}>{date}</span>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: 6 }}>
-          列出今天计划做的事，AI 将对每项进行 Prime 分级。
+          {t('plan.subtitle')}
         </p>
       </div>
 
@@ -89,7 +90,7 @@ export default function DailyPlan({ date = TODAY, navigate }) {
                 type="text"
                 value={a.text}
                 onChange={(e) => updateAction(i, 'text', e.target.value)}
-                placeholder={`行为 ${i + 1}`}
+                placeholder={t('plan.action_placeholder')}
                 style={{ flex: 1 }}
               />
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -100,9 +101,8 @@ export default function DailyPlan({ date = TODAY, navigate }) {
                   onChange={(e) => updateAction(i, 'duration_hours', e.target.value)}
                   min="0.1" max="24" step="0.5"
                   style={{ width: '72px', textAlign: 'center' }}
-                  title="时长（小时）"
                 />
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>h</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('plan.hours_unit')}</span>
               </div>
               <button
                 type="button"
@@ -133,9 +133,8 @@ export default function DailyPlan({ date = TODAY, navigate }) {
         ))}
       </div>
 
-      {/* 添加行为 */}
       <button type="button" className="btn btn-ghost" onClick={addAction} style={{ alignSelf: 'flex-start', color: 'var(--accent)' }}>
-        + 添加行为
+        {t('plan.add_action')}
       </button>
 
       {error && (
@@ -144,7 +143,6 @@ export default function DailyPlan({ date = TODAY, navigate }) {
         </div>
       )}
 
-      {/* 操作按钮 */}
       <div style={{ display: 'flex', gap: '12px' }}>
         <button
           type="button"
@@ -152,7 +150,9 @@ export default function DailyPlan({ date = TODAY, navigate }) {
           onClick={handleGrade}
           disabled={grading || !actions.some((a) => a.text.trim())}
         >
-          {grading ? <><span className="spinner" style={{ width: 14, height: 14 }} /> 分级中…</> : graded ? '重新分级' : 'AI 分级'}
+          {grading
+            ? <><span className="spinner" style={{ width: 14, height: 14 }} /> {t('plan.grading')}</>
+            : graded ? t('plan.grade_button') : t('plan.grade_button')}
         </button>
         <button
           type="button"
@@ -160,7 +160,7 @@ export default function DailyPlan({ date = TODAY, navigate }) {
           onClick={handleSaveAndContinue}
           disabled={!actions.some((a) => a.text.trim())}
         >
-          进入日志 →
+          {t('nav.dailyJournal')} →
         </button>
       </div>
     </div>

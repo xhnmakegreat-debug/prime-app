@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   getJournal, setJournal,
   getPlan, getProfile, getSettings,
@@ -9,7 +10,7 @@ import {
   computeDeltaP, computeDeltaPFromRating,
   gapAnalysis, formatDeltaP, pColorClass,
 } from '../lib/scoring.js'
-import { parseAttachment, validateFile } from '../lib/attachments.js'
+import { parseAttachment } from '../lib/attachments.js'
 import SelfRatingButtons from '../components/SelfRatingButtons.jsx'
 
 const TODAY = new Date().toISOString().split('T')[0]
@@ -21,16 +22,17 @@ const LEVEL_COLOR = {
 }
 
 export default function DailyJournal({ date = TODAY, navigate }) {
-  const profile = getProfile()
-  const plan    = getPlan(date)
-  const saved   = getJournal(date)
+  const { t } = useTranslation()
+  const profile  = getProfile()
+  const plan     = getPlan(date)
+  const saved    = getJournal(date)
   const settings = getSettings()
 
-  const [entries, setEntries] = useState(
+  const [entries,    setEntries]    = useState(
     saved?.entries || [{ text: '', user_rating: null, embedding: null, dot_score: null, delta_P: null, dimension_idx: 0, duration_hours: 1, attachments: [], attachment_analysis: null }]
   )
-  const [scoring,    setScoring]    = useState(null)  // index of entry being scored
-  const [uploading,  setUploading]  = useState(null)  // index of entry uploading
+  const [scoring,    setScoring]    = useState(null)
+  const [uploading,  setUploading]  = useState(null)
   const [scoringMsg, setScoringMsg] = useState('')
   const [error,      setError]      = useState(null)
   const fileInputRefs = useRef({})
@@ -80,25 +82,24 @@ export default function DailyJournal({ date = TODAY, navigate }) {
     const totalDeltaP = updatedEntries.reduce((s, e) => s + (e.delta_P || 0), 0)
     setJournal(date, { date, entries: updatedEntries, total_delta_P: totalDeltaP, report: saved?.report || null })
 
-    // 更新历史
     const history = getHistory()
     const withCum = computeCumulativeP(history)
     const prevCum = withCum.filter((h) => h.date < date)
     const prevCumP = prevCum.length ? prevCum[prevCum.length - 1].cumulative_P : 0
     upsertHistoryEntry({
       date,
-      delta_P:        totalDeltaP,
-      cumulative_P:   prevCumP + totalDeltaP,
-      avg_dot:        avg(updatedEntries.map((e) => e.dot_score).filter((v) => v !== null)),
+      delta_P:         totalDeltaP,
+      cumulative_P:    prevCumP + totalDeltaP,
+      avg_dot:         avg(updatedEntries.map((e) => e.dot_score).filter((v) => v !== null)),
       avg_user_rating: avg(updatedEntries.map((e) => e.user_rating).filter((v) => v !== null)),
     })
   }
 
   async function scoreEntry(i) {
     const entry = entries[i]
-    if (entry.user_rating === null) { setError('请先选择自评分数'); return }
-    if (!profile) { setError('未找到 Prime Profile'); return }
-    if (!compat.ok) { setError(`供应商已切换（当前 ${compat.current}，Profile 由 ${compat.profileProvider} 生成），请在"我的"页面重新锁定 Profile`); return }
+    if (entry.user_rating === null) { setError(t('journal.error_no_rating')); return }
+    if (!profile) { setError(t('journal.error_no_profile')); return }
+    if (!compat.ok) { setError(t('journal.error_compat', { cur: compat.current, prev: compat.profileProvider })); return }
 
     setScoring(i)
     setScoringMsg('')
@@ -107,10 +108,9 @@ export default function DailyJournal({ date = TODAY, navigate }) {
     try {
       let delta_P, dot_score, embedding, attachment_analysis = entry.attachment_analysis
 
-      // Analyze attachments via LLM if present and not yet analyzed
       const attachments = entry.attachments || []
       if (attachments.length && !attachment_analysis) {
-        setScoringMsg('分析附件中…')
+        setScoringMsg(t('journal.attach_analyzing'))
         const systemPrompt = '你是一个日志分析助手。请简洁描述用户上传的附件内容，提取关键信息用于日志记录分析。'
         const userMsg = `请分析以下附件并描述其主要内容（100字以内）。`
         attachment_analysis = await chat(
@@ -120,17 +120,18 @@ export default function DailyJournal({ date = TODAY, navigate }) {
         )
       }
 
-      setScoringMsg('计算中…')
+      setScoringMsg(t('journal.score_computing'))
       const textForEmbed = [entry.text, attachment_analysis].filter(Boolean).join('\n\n')
 
       if (textForEmbed.trim()) {
+        setScoringMsg(t('journal.embed_computing'))
         const entryVec = await embed(textForEmbed)
         const dimWeight = profile.dimensions?.[entry.dimension_idx]?.weight ?? 1
         const result = computeDeltaP(entryVec, profile.embedding, entry.user_rating, settings.alpha, entry.duration_hours, dimWeight)
         delta_P = result.deltaP
         dot_score = result.dotScore
         embedding = entryVec
-      } else if (!textForEmbed.trim()) {
+      } else {
         const dimWeight = profile.dimensions?.[entry.dimension_idx]?.weight ?? 1
         const result = computeDeltaPFromRating(entry.user_rating, entry.duration_hours, dimWeight)
         delta_P = result.deltaP
@@ -146,7 +147,7 @@ export default function DailyJournal({ date = TODAY, navigate }) {
       setEntries(updated)
       saveToStorage(updated)
     } catch (e) {
-      setError(`评分失败：${e.message}`)
+      setError(`${e.message}`)
     } finally {
       setScoring(null)
       setScoringMsg('')
@@ -167,55 +168,52 @@ export default function DailyJournal({ date = TODAY, navigate }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 700 }}>今日日志</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{t('journal.title')}</h1>
           <span className="mono text-muted" style={{ fontSize: '13px' }}>{date}</span>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: 6 }}>
-          记录你今天实际做了什么，选择自评分数，然后计算对齐度。
+          {t('journal.subtitle')}
         </p>
       </div>
 
       {!compat.ok && (
         <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'var(--red-soft)', color: 'var(--red)', fontSize: '13px' }}>
-          供应商已切换，Profile Embedding 维度不匹配。请在"我的"页面重新锁定 Profile 后再评分。
+          {t('journal.error_compat', { cur: compat.current, prev: compat.profileProvider })}
         </div>
       )}
 
       {/* 条目列表 */}
       {entries.map((entry, i) => (
         <div key={i} className="card fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* 头部：编号 + 删除 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="mono text-muted" style={{ fontSize: '12px' }}>条目 {i + 1}</span>
+            <span className="mono text-muted" style={{ fontSize: '12px' }}>{i + 1}</span>
             <button className="btn btn-ghost btn-sm" onClick={() => removeEntry(i)} disabled={entries.length === 1} style={{ color: 'var(--text-muted)', padding: '4px 8px' }}>×</button>
           </div>
 
-          {/* 文本输入 */}
           <textarea
             className="input"
             value={entry.text}
             onChange={(e) => updateEntry(i, 'text', e.target.value)}
-            placeholder="描述你做了什么（可选，未填则仅用自评计算）"
+            placeholder={t('journal.entry_placeholder')}
             style={{ minHeight: '80px' }}
           />
 
-          {/* 维度 + 时长 */}
           <div style={{ display: 'flex', gap: '12px' }}>
             <div style={{ flex: 1 }}>
-              <label style={labelStyle}>对应维度</label>
+              <label style={labelStyle}>{t('journal.dot_label')}</label>
               <select
                 className="input"
                 value={entry.dimension_idx}
                 onChange={(e) => updateEntry(i, 'dimension_idx', parseInt(e.target.value))}
                 style={{ cursor: 'pointer' }}
               >
-                {(profile?.dimensions || [{ name: '默认', weight: 1 }]).map((d, di) => (
+                {(profile?.dimensions || [{ name: '-', weight: 1 }]).map((d, di) => (
                   <option key={di} value={di}>{d.name}（{d.weight}）</option>
                 ))}
               </select>
             </div>
             <div style={{ width: '100px' }}>
-              <label style={labelStyle}>时长（h）</label>
+              <label style={labelStyle}>{t('journal.hours_unit')}</label>
               <input
                 className="input"
                 type="number"
@@ -227,18 +225,17 @@ export default function DailyJournal({ date = TODAY, navigate }) {
             </div>
           </div>
 
-          {/* 自评按钮 */}
           <div>
-            <label style={labelStyle}>自评</label>
+            <label style={labelStyle}>{t('journal.score_button')}</label>
             <SelfRatingButtons
               value={entry.user_rating}
               onChange={(r) => updateEntry(i, 'user_rating', r)}
             />
           </div>
 
-          {/* 附件上传区 */}
+          {/* 附件上传 */}
           <div>
-            <label style={labelStyle}>附件（图片 / PDF / Word）</label>
+            <label style={labelStyle}>{t('journal.upload_label')}</label>
             <div
               style={dropZoneStyle}
               onDragOver={(e) => e.preventDefault()}
@@ -246,8 +243,8 @@ export default function DailyJournal({ date = TODAY, navigate }) {
               onClick={() => fileInputRefs.current[i]?.click()}
             >
               {uploading === i
-                ? <><span className="spinner" style={{ width: 14, height: 14 }} /> 解析中…</>
-                : <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>拖拽文件或点击上传</span>
+                ? <><span className="spinner" style={{ width: 14, height: 14 }} /></>
+                : <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('journal.upload_hint')}</span>
               }
             </div>
             <input
@@ -264,10 +261,7 @@ export default function DailyJournal({ date = TODAY, navigate }) {
                 {(entry.attachments || []).map((att) => (
                   <div key={att.id} style={attachmentTagStyle}>
                     <span>{att.type === 'image' ? '🖼' : att.type === 'pdf' ? '📄' : '📝'} {att.name}</span>
-                    <button
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1 }}
-                      onClick={() => removeAttachment(i, att.id)}
-                    >×</button>
+                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1 }} onClick={() => removeAttachment(i, att.id)}>×</button>
                   </div>
                 ))}
               </div>
@@ -275,13 +269,12 @@ export default function DailyJournal({ date = TODAY, navigate }) {
 
             {entry.attachment_analysis && (
               <details style={{ marginTop: '8px' }}>
-                <summary style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>附件分析结果</summary>
+                <summary style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>{t('journal.attach_analysis_label')}</summary>
                 <p style={{ fontSize: '13px', marginTop: '6px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{entry.attachment_analysis}</p>
               </details>
             )}
           </div>
 
-          {/* 评分按钮 */}
           <button
             type="button"
             className="btn btn-secondary btn-sm"
@@ -290,32 +283,23 @@ export default function DailyJournal({ date = TODAY, navigate }) {
             style={{ alignSelf: 'flex-start' }}
           >
             {scoring === i
-              ? <><span className="spinner" style={{ width: 14, height: 14 }} /> {scoringMsg || '计算中…'}</>
-              : entry.delta_P !== null ? '重新评分' : '计算 ΔP'
+              ? <><span className="spinner" style={{ width: 14, height: 14 }} /> {scoringMsg || t('journal.scoring')}</>
+              : entry.delta_P !== null ? t('journal.score_button') : t('journal.score_button')
             }
           </button>
 
-          {/* 评分结果 */}
           {entry.delta_P !== null && (
-            <div style={{
-              padding: '12px 16px',
-              borderRadius: '10px',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-            }}>
+            <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', gap: '24px' }}>
                 <div>
-                  <div style={labelStyle}>ΔP</div>
+                  <div style={labelStyle}>{t('journal.delta_label')}</div>
                   <div className={`mono ${pColorClass(entry.delta_P)}`} style={{ fontSize: '18px', fontWeight: 700 }}>
                     {formatDeltaP(entry.delta_P)}
                   </div>
                 </div>
                 {entry.dot_score !== null && (
                   <div>
-                    <div style={labelStyle}>语义对齐</div>
+                    <div style={labelStyle}>{t('journal.dot_label')}</div>
                     <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--accent-text)' }}>
                       {entry.dot_score.toFixed(3)}
                     </div>
@@ -339,24 +323,19 @@ export default function DailyJournal({ date = TODAY, navigate }) {
       )}
 
       <button type="button" className="btn btn-ghost" onClick={addEntry} style={{ alignSelf: 'flex-start', color: 'var(--accent)' }}>
-        + 添加条目
+        {t('journal.add_entry')}
       </button>
 
-      {/* 今日汇总 */}
       {hasScored && (
         <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px' }}>
           <div>
-            <div style={labelStyle}>今日总 ΔP</div>
+            <div style={labelStyle}>{t('dashboard.today_delta')}</div>
             <div className={`mono ${pColorClass(totalDeltaP)}`} style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.02em' }}>
               {formatDeltaP(totalDeltaP)}
             </div>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => navigate('dailyReport', date)}
-          >
-            生成报告 →
+          <button type="button" className="btn btn-primary" onClick={() => navigate('dailyReport', date)}>
+            {t('report.generate_button')} →
           </button>
         </div>
       )}

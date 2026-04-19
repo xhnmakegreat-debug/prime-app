@@ -1,24 +1,26 @@
+import { useTranslation } from 'react-i18next'
 import { getHistory, computeCumulativeP } from '../lib/storage.js'
 import { formatDeltaP, pColorClass } from '../lib/scoring.js'
 import ThemeToggle from './ThemeToggle.jsx'
 
-const NAV_MAIN = [
-  { page: 'dashboard',    label: '仪表盘',  icon: '◈' },
-  { page: 'dailyPlan',    label: '今日计划', icon: '○' },
-  { page: 'dailyJournal', label: '今日日志', icon: '▦' },
-  { page: 'dailyReport',  label: '今日报告', icon: '◇' },
-]
-
-const NAV_BOTTOM = [
-  { page: 'me',    label: '我的',   icon: '◉' },
-  { page: 'setup', label: '设置',   icon: '⚙' },
-]
-
 export default function Layout({ currentPage, navigate, children }) {
+  const { t } = useTranslation()
   const history = getHistory()
   const withCum = computeCumulativeP(history)
   const latestP = withCum.length ? withCum[withCum.length - 1].cumulative_P : 0
   const pClass  = pColorClass(latestP)
+
+  const NAV_MAIN = [
+    { page: 'dashboard',    label: t('nav.dashboard'),    icon: '◈' },
+    { page: 'dailyPlan',    label: t('nav.dailyPlan'),    icon: '○' },
+    { page: 'dailyJournal', label: t('nav.dailyJournal'), icon: '▦' },
+    { page: 'dailyReport',  label: t('nav.dailyReport'),  icon: '◇' },
+  ]
+
+  const NAV_BOTTOM = [
+    { page: 'me',    label: t('nav.me'),    icon: '◉' },
+    { page: 'setup', label: t('nav.setup'), icon: '⚙' },
+  ]
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -52,7 +54,7 @@ export default function Layout({ currentPage, navigate, children }) {
             letterSpacing: '0.18em',
             color: 'var(--accent)',
           }}>
-            PRIME
+            {t('app_name')}
           </span>
           <ThemeToggle />
         </div>
@@ -71,7 +73,7 @@ export default function Layout({ currentPage, navigate, children }) {
             textTransform: 'uppercase',
             marginBottom: '6px',
           }}>
-            累计 P
+            {t('nav.cumulative_p')}
           </div>
           <div
             className={`mono ${pClass}`}
@@ -83,7 +85,7 @@ export default function Layout({ currentPage, navigate, children }) {
 
         {/* 主导航 */}
         <div style={{ padding: '8px 0', flex: 1, overflowY: 'auto' }}>
-          <NavSection label="工作区">
+          <NavSection label={t('nav.workspace')}>
             {NAV_MAIN.map(({ page, label, icon }) => (
               <NavItem
                 key={page}
@@ -98,7 +100,7 @@ export default function Layout({ currentPage, navigate, children }) {
 
         {/* 底部导航 */}
         <div style={{ padding: '8px 0', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-          <NavSection label="个人">
+          <NavSection label={t('nav.personal')}>
             {NAV_BOTTOM.map(({ page, label, icon }) => (
               <NavItem
                 key={page}

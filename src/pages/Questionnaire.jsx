@@ -1,31 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getQuestionnaire, setQuestionnaire } from '../lib/storage.js'
 import { chat, parseLLMJson } from '../lib/llm.js'
 import { buildPromptA } from '../lib/prompts/index.js'
 import { setProfile } from '../lib/storage.js'
 
-const QUESTIONS = [
-  '你认为自己目前最核心的使命或方向是什么？不需要宏大，说真实的。',
-  '在过去一年里，做哪些事情让你感到真正投入、有能量、不需要表演？',
-  '你最不想成为什么样的人？有哪些行为模式是你想避免的？',
-  '如果不考虑收入和外部评价，你的典型一天会是什么样的？',
-  '现在是什么在阻止你过上面描述的生活？',
-]
-
 export default function Questionnaire({ onComplete }) {
+  const { t } = useTranslation()
+  const QUESTIONS = t('questionnaire.questions', { returnObjects: true })
+
   const saved = getQuestionnaire()
-  const [messages,  setMessages]  = useState(saved.messages || [])
-  const [input,     setInput]     = useState('')
-  const [loading,   setLoading]   = useState(false)
-  const [error,     setError]     = useState(null)
+  const [messages,   setMessages]   = useState(saved.messages || [])
+  const [input,      setInput]      = useState('')
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState(null)
   const [generating, setGenerating] = useState(false)
   const endRef = useRef(null)
 
-  // 已回答的问题数量（user 消息数）
   const answered = messages.filter((m) => m.role === 'user').length
   const currentQ = answered < QUESTIONS.length ? QUESTIONS[answered] : null
 
-  // 首次进入：添加第一个问题
   useEffect(() => {
     if (messages.length === 0) {
       const first = [{ role: 'assistant', content: QUESTIONS[0] }]
@@ -51,13 +45,10 @@ export default function Questionnaire({ onComplete }) {
     const newAnswered = newMsgs.filter((m) => m.role === 'user').length
 
     if (newAnswered < QUESTIONS.length) {
-      // 下一个问题
       const nextQ   = { role: 'assistant', content: QUESTIONS[newAnswered] }
       const updated = [...newMsgs, nextQ]
       setMessages(updated)
       setQuestionnaire({ messages: updated, completed: false })
-    } else {
-      // 全部回答完毕，等待用户点击提交
     }
   }
 
@@ -73,14 +64,14 @@ export default function Questionnaire({ onComplete }) {
         ...profileData,
         embedding: [],
         embedding_provider: null,
-        version: 0,  // 0 表示未 embed，ProfileConfirm 页面锁定后变为 1
+        version: 0,
         updated_at: new Date().toISOString(),
       })
 
       setQuestionnaire({ messages: msgs, completed: true })
       onComplete()
     } catch (e) {
-      setError(`生成 Profile 失败：${e.message}`)
+      setError(t('questionnaire.error_prefix', { msg: e.message }))
       setGenerating(false)
     }
   }
@@ -98,12 +89,13 @@ export default function Questionnaire({ onComplete }) {
       {/* 标题 */}
       <div style={{ marginBottom: '32px' }}>
         <h2 style={{ fontFamily: 'monospace', color: 'var(--accent)', fontSize: '20px', letterSpacing: '0.08em' }}>
-          PRIME
+          {t('app_name')}
         </h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: 4 }}>
-          {answered < QUESTIONS.length ? `问题 ${answered + 1} / ${QUESTIONS.length}` : `全部完成 ${QUESTIONS.length} / ${QUESTIONS.length}`}
+          {answered < QUESTIONS.length
+            ? `${answered + 1} / ${QUESTIONS.length}`
+            : `${QUESTIONS.length} / ${QUESTIONS.length}`}
         </p>
-        {/* 进度条 */}
         <div style={{ marginTop: 8, height: 3, background: 'var(--border)', borderRadius: 2 }}>
           <div style={{
             height: '100%',
@@ -121,10 +113,7 @@ export default function Questionnaire({ onComplete }) {
           <div
             key={i}
             className="fade-in"
-            style={{
-              display: 'flex',
-              justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start',
-            }}
+            style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}
           >
             <div style={{
               maxWidth: '85%',
@@ -144,20 +133,13 @@ export default function Questionnaire({ onComplete }) {
         {generating && (
           <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '13px' }}>
             <span className="spinner" />
-            正在生成你的 Prime Profile…
+            {t('common.generating')}
           </div>
         )}
 
         {error && (
           <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'var(--red-soft)', color: 'var(--red)', fontSize: '13px' }}>
             {error}
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ marginLeft: 12 }}
-              onClick={() => generateProfile(messages.filter(m => m.role === 'user').length === QUESTIONS.length ? messages : messages)}
-            >
-              重试
-            </button>
           </div>
         )}
 
@@ -168,7 +150,7 @@ export default function Questionnaire({ onComplete }) {
       {!currentQ && !generating && (
         <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
-            五个问题已全部回答完毕。
+            {t('questionnaire.all_done')}
           </p>
           <button
             type="button"
@@ -176,7 +158,7 @@ export default function Questionnaire({ onComplete }) {
             onClick={() => generateProfile(messages)}
             style={{ width: '100%' }}
           >
-            生成 Prime Profile →
+            {t('questionnaire.generate_profile')} →
           </button>
         </div>
       )}
@@ -188,7 +170,7 @@ export default function Questionnaire({ onComplete }) {
             className="input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="在这里回答…"
+            placeholder={t('questionnaire.input_placeholder')}
             style={{ flex: 1, minHeight: 'unset', height: '48px', resize: 'none', lineHeight: '28px', padding: '10px 14px' }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e) }

@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getProfile, setProfile, setQuestionnaire } from '../lib/storage.js'
 import { embed } from '../lib/llm.js'
 import { getSettings } from '../lib/storage.js'
 
 export default function ProfileConfirm({ onComplete, navigate }) {
+  const { t } = useTranslation()
   const initial = getProfile() || {}
   const [coreIdentity,  setCoreIdentity]  = useState(initial.core_identity || '')
   const [dimensions,    setDimensions]    = useState(initial.dimensions || [])
@@ -47,18 +49,18 @@ export default function ProfileConfirm({ onComplete, navigate }) {
       const vec = await embed(coreIdentity)
       const settings = getSettings()
       setProfile({
-        core_identity:   coreIdentity,
+        core_identity:      coreIdentity,
         dimensions,
-        anti_patterns:   antiPatterns,
-        current_stage:   currentStage,
-        embedding:       vec,
+        anti_patterns:      antiPatterns,
+        current_stage:      currentStage,
+        embedding:          vec,
         embedding_provider: settings.provider,
-        version:         1,
-        updated_at:      new Date().toISOString(),
+        version:            1,
+        updated_at:         new Date().toISOString(),
       })
       onComplete()
     } catch (e) {
-      setError(`Embedding 生成失败：${e.message}`)
+      setError(t('profile_confirm.error_embed', { msg: e.message }))
     } finally {
       setLocking(false)
     }
@@ -72,20 +74,20 @@ export default function ProfileConfirm({ onComplete, navigate }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div>
-        <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)' }}>确认你的 Prime Profile</h1>
+        <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)' }}>{t('profile_confirm.title')}</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: 6 }}>
-          这是根据问卷生成的结果，你可以在此编辑后锁定。锁定后将生成 Embedding 向量。
+          {t('profile_confirm.subtitle')}
         </p>
       </div>
 
       {/* 核心身份 */}
       <div className="card">
-        <label style={labelStyle}>核心身份 · Core Identity</label>
+        <label style={labelStyle}>{t('profile_confirm.core_identity_label')}</label>
         <textarea
           className="input"
           value={coreIdentity}
           onChange={(e) => setCoreIdentity(e.target.value)}
-          placeholder="一句话描述你最核心的方向或使命"
+          placeholder={t('profile_confirm.core_identity_label')}
           style={{ minHeight: '80px' }}
         />
       </div>
@@ -93,9 +95,9 @@ export default function ProfileConfirm({ onComplete, navigate }) {
       {/* 维度 */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <label style={labelStyle}>维度 · Dimensions</label>
+          <label style={labelStyle}>{t('profile_confirm.dimensions_label')}</label>
           <span className="mono" style={{ fontSize: '13px', color: weightOk ? 'var(--green)' : 'var(--red)' }}>
-            权重合计 {weightSum.toFixed(2)}
+            {t('profile_confirm.weight_sum')} {weightSum.toFixed(2)} {weightOk ? t('profile_confirm.weight_ok') : t('profile_confirm.weight_error')}
           </span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -106,7 +108,7 @@ export default function ProfileConfirm({ onComplete, navigate }) {
                 type="text"
                 value={d.name}
                 onChange={(e) => updateDim(i, 'name', e.target.value)}
-                placeholder="维度名称"
+                placeholder={t('profile_confirm.dim_name_placeholder')}
                 style={{ flex: 1 }}
               />
               <input
@@ -130,14 +132,14 @@ export default function ProfileConfirm({ onComplete, navigate }) {
         </div>
         {dimensions.length < 4 && (
           <button type="button" onClick={addDim} className="btn btn-ghost btn-sm" style={{ marginTop: 12, color: 'var(--accent)' }}>
-            + 添加维度
+            {t('profile_confirm.add_dim')}
           </button>
         )}
       </div>
 
       {/* 反模式 */}
       <div className="card">
-        <label style={labelStyle}>反模式 · Anti-patterns</label>
+        <label style={labelStyle}>{t('profile_confirm.anti_patterns_label')}</label>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
           {antiPatterns.map((tag, i) => (
             <span
@@ -145,7 +147,6 @@ export default function ProfileConfirm({ onComplete, navigate }) {
               className="badge badge-red"
               style={{ cursor: 'pointer' }}
               onClick={() => setAntiPatterns(antiPatterns.filter((_, idx) => idx !== i))}
-              title="点击删除"
             >
               {tag} ×
             </span>
@@ -157,22 +158,24 @@ export default function ProfileConfirm({ onComplete, navigate }) {
             type="text"
             value={newTag}
             onChange={(e) => setNewTag(e.target.value)}
-            placeholder="添加反模式（回车确认）"
+            placeholder={t('profile_confirm.add_tag_placeholder')}
             style={{ flex: 1 }}
           />
-          <button type="submit" className="btn btn-secondary btn-sm" disabled={!newTag.trim()}>添加</button>
+          <button type="submit" className="btn btn-secondary btn-sm" disabled={!newTag.trim()}>
+            {t('profile_confirm.add_tag_button')}
+          </button>
         </form>
       </div>
 
       {/* 当前阶段 */}
       <div className="card">
-        <label style={labelStyle}>当前阶段 · Current Stage</label>
+        <label style={labelStyle}>{t('profile_confirm.current_stage_label')}</label>
         <input
           className="input"
           type="text"
           value={currentStage}
           onChange={(e) => setCurrentStage(e.target.value)}
-          placeholder="例如：早期积累期"
+          placeholder={t('profile_confirm.current_stage_label')}
         />
       </div>
 
@@ -182,7 +185,6 @@ export default function ProfileConfirm({ onComplete, navigate }) {
         </div>
       )}
 
-      {/* 操作按钮 */}
       <div style={{ display: 'flex', gap: '12px' }}>
         <button
           type="button"
@@ -191,10 +193,12 @@ export default function ProfileConfirm({ onComplete, navigate }) {
           disabled={!weightOk || !coreIdentity.trim() || locking}
           style={{ flex: 1 }}
         >
-          {locking ? <><span className="spinner" style={{ width: 16, height: 16 }} /> 生成 Embedding…</> : '锁定 Profile'}
+          {locking
+            ? <><span className="spinner" style={{ width: 16, height: 16 }} /> {t('profile_confirm.locking')}</>
+            : t('profile_confirm.lock_button')}
         </button>
         <button type="button" className="btn btn-ghost btn-lg" onClick={handleRegenerate}>
-          重新生成
+          {t('profile_confirm.regenerate_button')}
         </button>
       </div>
     </div>

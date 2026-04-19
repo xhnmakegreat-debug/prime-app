@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getSettings, getProfile, getQuestionnaire } from './lib/storage.js'
 import Layout from './components/Layout.jsx'
 import OnboardingGuide from './components/OnboardingGuide.jsx'
@@ -36,11 +37,13 @@ export default function App() {
   const [page,      setPage]      = useState(resolveInitialPage)
   const [date,      setDate]      = useState(TODAY)
   const [showGuide, setShowGuide] = useState(false)
+  const { i18n }                  = useTranslation()
 
-  // 应用主题 + 首次启动检测
+  // 应用主题 + 语言 + 首次启动检测
   useEffect(() => {
     const settings = getSettings()
     document.documentElement.setAttribute('data-theme', settings.theme || 'dark')
+    i18n.changeLanguage(settings.language || 'zh')
 
     // 首次进入 Setup 时不弹指南，其他情况下检测
     if (resolveInitialPage() !== 'setup') {

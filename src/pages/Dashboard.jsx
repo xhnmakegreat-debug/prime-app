@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { getHistory, computeCumulativeP, getJournal, getProfile } from '../lib/storage.js'
 import { formatDeltaP, pColorClass, driftCheck } from '../lib/scoring.js'
 import PValueChart from '../components/PValueChart.jsx'
@@ -5,6 +6,7 @@ import PValueChart from '../components/PValueChart.jsx'
 const TODAY = new Date().toISOString().split('T')[0]
 
 export default function Dashboard({ date = TODAY, navigate }) {
+  const { t } = useTranslation()
   const history  = getHistory()
   const withCum  = computeCumulativeP(history)
   const latestP  = withCum.length ? withCum[withCum.length - 1].cumulative_P : 0
@@ -14,6 +16,19 @@ export default function Dashboard({ date = TODAY, navigate }) {
   const drift    = driftCheck(history)
   const recent30 = withCum.slice(-30)
 
+  const quickLinks = [
+    { label: t('dashboard.daily_plan'),   page: 'dailyPlan',   status: todayJ ? t('dashboard.filled') : t('dashboard.not_filled') },
+    { label: t('dashboard.daily_report'), page: 'dailyReport', status: todayJ?.report ? t('dashboard.generated') : t('dashboard.not_generated') },
+  ]
+
+  const tableHeaders = [
+    t('dashboard.today_prefix').replace(' · ', '').trim() || 'Date',
+    'ΔP',
+    t('nav.cumulative_p'),
+    t('me.stat_dot'),
+    t('me.stat_rating'),
+  ]
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
@@ -22,7 +37,7 @@ export default function Dashboard({ date = TODAY, navigate }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: '6px' }}>
-              仪表盘
+              {t('dashboard.title')}
             </h1>
             {profile && (
               <p style={{ color: 'var(--text-secondary)', fontSize: '15px', lineHeight: 1.5, maxWidth: '600px' }}>
@@ -31,7 +46,7 @@ export default function Dashboard({ date = TODAY, navigate }) {
             )}
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '32px' }}>
-            <div style={metaLabel}>累计 P</div>
+            <div style={metaLabel}>{t('nav.cumulative_p')}</div>
             <div className={`mono ${pColorClass(latestP)}`} style={{ fontSize: '40px', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1 }}>
               {formatDeltaP(latestP, 2)}
             </div>
@@ -44,7 +59,7 @@ export default function Dashboard({ date = TODAY, navigate }) {
 
         {/* 左栏：今日数据 + 漂移 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={metaLabel}>今日 · {date}</div>
+          <div style={metaLabel}>{t('dashboard.today_prefix')}{date}</div>
 
           {/* 今日 ΔP */}
           <div
@@ -54,22 +69,21 @@ export default function Dashboard({ date = TODAY, navigate }) {
             onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
             onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
           >
-            <div style={metaLabel}>今日 ΔP</div>
+            <div style={metaLabel}>{t('dashboard.today_delta')}</div>
             <div className={`mono ${todayJ?.total_delta_P != null ? pColorClass(todayJ.total_delta_P) : 'text-muted'}`}
               style={{ fontSize: '32px', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '8px' }}>
               {todayJ?.total_delta_P != null ? formatDeltaP(todayJ.total_delta_P) : '—'}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              {todayJ?.entries?.length ? `${todayJ.entries.length} 条记录` : '点击填写日志'}
+              {todayJ?.entries?.length
+                ? t('dashboard.entry_count', { n: todayJ.entries.length })
+                : t('dashboard.no_journal')}
             </div>
           </div>
 
           {/* 快捷入口 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {[
-              { label: '今日计划', page: 'dailyPlan',    status: todayJ ? '已填写' : '未填写' },
-              { label: '今日报告', page: 'dailyReport',  status: todayJ?.report ? '已生成' : '未生成' },
-            ].map(({ label, page, status }) => (
+            {quickLinks.map(({ label, page, status }) => (
               <button
                 key={page}
                 type="button"
@@ -98,7 +112,7 @@ export default function Dashboard({ date = TODAY, navigate }) {
           {/* 漂移警告 */}
           {drift.isDrifting && (
             <div style={{ padding: '12px 14px', borderRadius: '8px', background: 'var(--red-soft)', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--red)', lineHeight: 1.6 }}>
-              近期持续偏离 Prime 方向。平均 ΔP = <span className="mono">{formatDeltaP(drift.avgDeltaP, 3)}</span>
+              {t('dashboard.drift_warning')} · ΔP = <span className="mono">{formatDeltaP(drift.avgDeltaP, 3)}</span>
             </div>
           )}
 
@@ -125,14 +139,13 @@ export default function Dashboard({ date = TODAY, navigate }) {
 
         {/* 右栏：趋势图 + 统计 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
-          {/* P 值趋势 */}
           <div className="card" style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={metaLabel}>P 值趋势（近 30 天）</div>
+              <div style={metaLabel}>P {recent30.length > 0 ? `(${recent30.length}d)` : ''}</div>
               {recent30.length > 0 && (
                 <div style={{ display: 'flex', gap: '20px' }}>
-                  <Stat label="天数" value={recent30.length} />
-                  <Stat label="均日 ΔP" value={formatDeltaP(recent30.reduce((s,e) => s + e.delta_P, 0) / recent30.length, 3)} cls={pColorClass(recent30.reduce((s,e) => s + e.delta_P, 0))} />
+                  <Stat label="n" value={recent30.length} />
+                  <Stat label="avg ΔP" value={formatDeltaP(recent30.reduce((s,e) => s + e.delta_P, 0) / recent30.length, 3)} cls={pColorClass(recent30.reduce((s,e) => s + e.delta_P, 0))} />
                 </div>
               )}
             </div>
@@ -143,13 +156,13 @@ export default function Dashboard({ date = TODAY, navigate }) {
           {withCum.length > 0 && (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
-                <span style={metaLabel}>历史记录</span>
+                <span style={metaLabel}>{t('me.history_section')}</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '480px' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-elevated)' }}>
-                      {['日期', 'ΔP', '累计 P', '对齐均分', '自评均分'].map((h) => (
+                      {['Date', 'ΔP', t('nav.cumulative_p'), t('me.stat_dot'), t('me.stat_rating')].map((h) => (
                         <th key={h} style={thStyle}>{h}</th>
                       ))}
                     </tr>
@@ -185,10 +198,10 @@ export default function Dashboard({ date = TODAY, navigate }) {
             <div className="card" style={{ padding: '64px 32px', textAlign: 'center' }}>
               <div className="mono" style={{ fontSize: '32px', color: 'var(--border)', marginBottom: '16px' }}>◈</div>
               <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '14px' }}>
-                从第一天开始
+                {t('dashboard.no_journal')}
               </p>
               <button className="btn btn-primary" onClick={() => navigate('dailyPlan', date)}>
-                制定今日计划 →
+                {t('dashboard.daily_plan')} →
               </button>
             </div>
           )}

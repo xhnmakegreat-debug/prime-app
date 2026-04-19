@@ -38,6 +38,16 @@ export function build({ entries, profile, date, totalDeltaP }) {
     '',
     `今日记录（共 ${entries.length} 条）：`,
     entrySummary,
+    '',
+    '请严格按以下 JSON 格式输出，直接输出 JSON，不要加任何解释或 markdown：',
+    '{',
+    `  "today_delta_P": ${totalDeltaP != null ? totalDeltaP.toFixed(4) : 0},`,
+    '  "alignment_assessment": "...",',
+    '  "speed_check": "too_slow|on_track|too_intense|circling 其中之一",',
+    '  "speed_note": "...",',
+    '  "gap_analysis": "...或null",',
+    '  "single_suggestion": "..."',
+    '}',
   ].join('\n')
 
   return { system, userMessage }

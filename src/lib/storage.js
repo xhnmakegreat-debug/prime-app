@@ -34,6 +34,7 @@ export function getSettings() {
     ollamaEmbedModel: 'nomic-embed-text',
     alpha: 0.7,
     theme: 'dark',
+    language: 'zh',
   })
 }
 

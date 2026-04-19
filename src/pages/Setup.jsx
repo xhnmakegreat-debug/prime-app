@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getSettings, setSettings } from '../lib/storage.js'
 import { getEnabledProviders } from '../lib/providers/registry.js'
 import { embed } from '../lib/llm.js'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
 export default function Setup({ onComplete, isSettings = false }) {
+  const { t, i18n } = useTranslation()
   const saved     = getSettings()
   const providers = getEnabledProviders()
 
@@ -15,13 +17,19 @@ export default function Setup({ onComplete, isSettings = false }) {
   const [ollamaChatModel,  setOllamaChatModel]  = useState(saved.ollamaChatModel || 'qwen2.5:7b')
   const [ollamaEmbedModel, setOllamaEmbedModel] = useState(saved.ollamaEmbedModel || 'nomic-embed-text')
   const [alpha,            setAlpha]            = useState(saved.alpha ?? 0.7)
+  const [language,         setLanguage]         = useState(saved.language || 'zh')
   const [testing,          setTesting]          = useState(false)
   const [testResult,       setTestResult]       = useState(null)
 
   const current = providers.find((p) => p.id === provider)
 
+  function handleLanguageChange(lang) {
+    setLanguage(lang)
+    i18n.changeLanguage(lang)
+  }
+
   function save(markCompleted = false) {
-    setSettings({ provider, apiKey, voyageApiKey, ollamaBaseUrl, ollamaChatModel, ollamaEmbedModel, alpha, ...(markCompleted ? { setupCompleted: true } : {}) })
+    setSettings({ provider, apiKey, voyageApiKey, ollamaBaseUrl, ollamaChatModel, ollamaEmbedModel, alpha, language, ...(markCompleted ? { setupCompleted: true } : {}) })
   }
 
   async function testConnection() {
@@ -30,7 +38,7 @@ export default function Setup({ onComplete, isSettings = false }) {
     setTestResult(null)
     try {
       const vec = await embed('test connection')
-      setTestResult({ ok: true, msg: `连接成功 · 向量维度 ${vec.length}` })
+      setTestResult({ ok: true, msg: t('setup.test_success', { dim: vec.length }) })
     } catch (e) {
       setTestResult({ ok: false, msg: e.message })
     } finally {
@@ -43,6 +51,13 @@ export default function Setup({ onComplete, isSettings = false }) {
     save(!isSettings)
     onComplete()
   }
+
+  const principles = [
+    [t('setup.principles.local_title'),     t('setup.principles.local_desc')],
+    [t('setup.principles.direction_title'), t('setup.principles.direction_desc')],
+    [t('setup.principles.clarity_title'),   t('setup.principles.clarity_desc')],
+    [t('setup.principles.axis_title'),      t('setup.principles.axis_desc')],
+  ]
 
   return (
     <div style={{
@@ -62,7 +77,6 @@ export default function Setup({ onComplete, isSettings = false }) {
         padding: '56px 48px',
         position: 'relative',
       }}>
-        {/* 主题切换 */}
         <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
           <ThemeToggle />
         </div>
@@ -70,10 +84,10 @@ export default function Setup({ onComplete, isSettings = false }) {
         {/* Logo */}
         <div style={{ marginBottom: '40px' }}>
           <div className="mono" style={{ fontSize: '32px', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.15em' }}>
-            PRIME
+            {t('app_name')}
           </div>
           <div style={{ fontSize: '15px', color: 'var(--accent-text)', marginTop: '8px', lineHeight: 1.5 }}>
-            存在主义日志
+            {t('app_tagline')}
           </div>
         </div>
 
@@ -85,21 +99,16 @@ export default function Setup({ onComplete, isSettings = false }) {
           marginBottom: '32px',
         }}>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-text)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px', opacity: 0.7 }}>
-            核心公式
+            {language === 'zh' ? '核心公式' : 'Core Formula'}
           </div>
-          <div className="mono" style={{ fontSize: '16px', color: 'var(--accent-text)', lineHeight: 1.8 }}>
-            P = ∫₀ᵀ s⃗(τ) · û_prime(τ) dτ
+          <div style={{ fontSize: '16px', color: 'var(--accent-text)', lineHeight: 1.8, fontFamily: "'Cambria Math', 'STIX Two Math', 'Latin Modern Math', serif" }}>
+            P = ∫₀ᵀ <b>s</b>(τ) · û<sub>prime</sub>(τ) dτ
           </div>
         </div>
 
         {/* 设计原则 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {[
-            ['本地优先', '所有数据存储在你的设备，没有服务器，没有账号'],
-            ['方向优先于速度', '产品从不要求你做更多，只要求你对准更诚实'],
-            ['清醒优先于安慰', '报告冷静、具体、基于数据，不提供虚假鼓励'],
-            ['轴会移动', '你的 Prime 不是固定的，系统追踪其随时间的漂移'],
-          ].map(([title, desc]) => (
+          {principles.map(([title, desc]) => (
             <div key={title} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
               <span style={{ color: 'var(--accent)', fontSize: '16px', marginTop: '1px', flexShrink: 0 }}>·</span>
               <div>
@@ -121,17 +130,47 @@ export default function Setup({ onComplete, isSettings = false }) {
       }}>
         <div style={{ maxWidth: '520px' }}>
           <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>
-            {isSettings ? '设置' : '选择 AI 供应商'}
+            {isSettings ? t('setup.title_settings') : t('setup.title')}
           </h2>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '36px' }}>
-            {isSettings ? '修改模型和权重配置' : '配置完成后即可开始使用，所有 API Key 仅存储在本地。'}
+            {isSettings ? t('setup.subtitle_settings') : t('setup.subtitle')}
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
 
+            {/* 语言选择 */}
+            <div>
+              <div style={sectionLabel}>{t('setup.language_section')}</div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {[
+                  { code: 'zh', label: t('setup.lang_zh') },
+                  { code: 'en', label: t('setup.lang_en') },
+                ].map(({ code, label }) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => handleLanguageChange(code)}
+                    style={{
+                      padding: '8px 20px',
+                      borderRadius: '8px',
+                      border: `1.5px solid ${language === code ? 'var(--accent)' : 'var(--border)'}`,
+                      background: language === code ? 'var(--accent-soft)' : 'var(--surface)',
+                      color: language === code ? 'var(--accent-text)' : 'var(--text-secondary)',
+                      fontWeight: language === code ? 600 : 400,
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.15s, background 0.15s',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* 供应商选择 */}
             <div>
-              <div style={sectionLabel}>供应商</div>
+              <div style={sectionLabel}>{t('setup.provider_section')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {providers.map((p) => (
                   <label
@@ -162,7 +201,7 @@ export default function Setup({ onComplete, isSettings = false }) {
                     </div>
                     {provider === p.id && (
                       <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent)', padding: '2px 8px', background: 'var(--accent-soft)', borderRadius: '4px', flexShrink: 0, alignSelf: 'center' }}>
-                        已选
+                        {t('setup.selected_badge')}
                       </span>
                     )}
                   </label>
@@ -173,8 +212,7 @@ export default function Setup({ onComplete, isSettings = false }) {
             {/* Anthropic CORS 提示 */}
             {current?.corsWarning && (
               <div style={{ padding: '12px 16px', borderRadius: '8px', background: 'var(--red-soft)', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--red)', lineHeight: 1.6 }}>
-                在 Electron 桌面版中，Anthropic API 可直连使用，无 CORS 限制。
-                浏览器 dev 模式需配置 Vite proxy。
+                {t('setup.cors_warning')}
               </div>
             )}
 
@@ -182,7 +220,7 @@ export default function Setup({ onComplete, isSettings = false }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {current?.needsApiKey && (
                 <div>
-                  <label style={fieldLabel}>API Key</label>
+                  <label style={fieldLabel}>{t('setup.api_key_label')}</label>
                   <input
                     className="input"
                     type="password"
@@ -196,7 +234,9 @@ export default function Setup({ onComplete, isSettings = false }) {
 
               {current?.needsVoyageKey && (
                 <div>
-                  <label style={fieldLabel}>Voyage API Key <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>（Embedding 用）</span></label>
+                  <label style={fieldLabel}>
+                    {t('setup.voyage_key_label')} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{t('setup.voyage_key_suffix')}</span>
+                  </label>
                   <input
                     className="input"
                     type="password"
@@ -211,7 +251,7 @@ export default function Setup({ onComplete, isSettings = false }) {
               {current?.needsBaseUrl && (
                 <>
                   <div>
-                    <label style={fieldLabel}>Ollama Base URL</label>
+                    <label style={fieldLabel}>{t('setup.ollama_url_label')}</label>
                     <input
                       className="input"
                       type="text"
@@ -220,16 +260,16 @@ export default function Setup({ onComplete, isSettings = false }) {
                       placeholder="http://localhost:11434"
                     />
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                      启动 Ollama：<code style={{ fontFamily: 'monospace', background: 'var(--surface)', padding: '1px 6px', borderRadius: '4px' }}>OLLAMA_ORIGINS=* ollama serve</code>
+                      {t('setup.ollama_start_hint')} <code style={{ fontFamily: 'monospace', background: 'var(--surface)', padding: '1px 6px', borderRadius: '4px' }}>OLLAMA_ORIGINS=* ollama serve</code>
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <div style={{ flex: 1 }}>
-                      <label style={fieldLabel}>聊天模型</label>
+                      <label style={fieldLabel}>{t('setup.ollama_chat_label')}</label>
                       <input className="input" type="text" value={ollamaChatModel} onChange={(e) => setOllamaChatModel(e.target.value)} placeholder="qwen2.5:7b" />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={fieldLabel}>Embedding 模型</label>
+                      <label style={fieldLabel}>{t('setup.ollama_embed_label')}</label>
                       <input className="input" type="text" value={ollamaEmbedModel} onChange={(e) => setOllamaEmbedModel(e.target.value)} placeholder="nomic-embed-text" />
                     </div>
                   </div>
@@ -240,7 +280,7 @@ export default function Setup({ onComplete, isSettings = false }) {
             {/* Alpha 权重 */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <label style={fieldLabel}>α 混合权重</label>
+                <label style={fieldLabel}>{t('setup.alpha_label')}</label>
                 <span className="mono" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--accent)' }}>{alpha.toFixed(1)}</span>
               </div>
               <input
@@ -250,8 +290,8 @@ export default function Setup({ onComplete, isSettings = false }) {
                 style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                <span>← 更多主观感受（r）</span>
-                <span>更多语义对齐（dot）→</span>
+                <span>{t('setup.alpha_left')}</span>
+                <span>{t('setup.alpha_right')}</span>
               </div>
             </div>
 
@@ -264,7 +304,7 @@ export default function Setup({ onComplete, isSettings = false }) {
                 disabled={testing}
               >
                 {testing ? <span className="spinner" style={{ width: 13, height: 13 }} /> : null}
-                {testing ? '测试中…' : '测试连接'}
+                {testing ? t('setup.testing') : t('setup.test_button')}
               </button>
               {testResult && (
                 <span style={{ fontSize: '13px', color: testResult.ok ? 'var(--green)' : 'var(--red)' }}>
@@ -274,7 +314,7 @@ export default function Setup({ onComplete, isSettings = false }) {
             </div>
 
             <button type="submit" className="btn btn-primary btn-lg" style={{ alignSelf: 'flex-start', minWidth: '160px' }}>
-              {isSettings ? '保存设置' : '开始使用 →'}
+              {isSettings ? t('setup.submit_settings') : t('setup.submit_onboard')}
             </button>
 
           </form>
