@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LocuSelf · 本征日志</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #2a2a2a;
+      --accent: #7c6af7;
+      --accent-soft: rgba(124,106,247,0.12);
+      --text: #e8e8e8;
+      --text-muted: #777;
+      --green: #4ade80;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      width: 100%;
+      max-width: 860px;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 100px;
+      background: var(--accent-soft);
+      border: 1px solid rgba(124,106,247,0.3);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      margin-bottom: 24px;
+    }
+
+    .title {
+      font-size: clamp(36px, 6vw, 60px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #e8e8e8 30%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .subtitle-zh {
+      font-size: 22px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      font-weight: 400;
+    }
+
+    .tagline {
+      font-size: 17px;
+      color: #aaa;
+      line-height: 1.7;
+      max-width: 540px;
+      margin: 0 auto 40px;
+    }
+
+    /* ── Formula ── */
+    .formula-box {
+      display: inline-block;
+      padding: 18px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 56px;
+    }
+
+    .formula-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .formula {
+      font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', serif;
+      font-size: 22px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Download ── */
+    .downloads {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .btn-dl {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-dl:hover { opacity: 0.85; transform: translateY(-1px); }
+    .btn-dl:active { transform: translateY(0); }
+
+    .btn-win {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-mac {
+      background: var(--surface);
+      color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+
+    .btn-icon { font-size: 20px; }
+
+    .version-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 72px;
+    }
+
+    /* ── Features ── */
+    .features {
+      width: 100%;
+      max-width: 860px;
+      padding: 0 24px 80px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .feat {
+      padding: 20px 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .feat-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .feat-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      width: 100%;
+      padding: 24px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <section class="hero">
+    <div class="badge">v2.1.1 · 免费开源</div>
+
+    <div class="title">LocuSelf</div>
+    <div class="subtitle-zh">本征日志</div>
+
+    <p class="tagline">
+      把每一刻的行动与你的核心方向做内积。<br>
+      不评价，不激励，只测量。
+    </p>
+
+    <div class="formula-box">
+      <div class="formula-label">Core Formula</div>
+      <div class="formula">P = ∫₀ᵀ <b>s</b>(τ) · û<sub>prime</sub>(τ) dτ</div>
+    </div>
+
+    <div class="downloads">
+      <a
+        class="btn-dl btn-win"
+        href="https://github.com/xhnmakegreat-debug/prime-app/releases/download/v2.1.1/PRIME.Setup.2.0.0.exe"
+        download
+      >
+        <span class="btn-icon">⊞</span>
+        Windows 下载 (.exe)
+      </a>
+
+      <a
+        class="btn-dl btn-mac"
+        href="https://github.com/xhnmakegreat-debug/prime-app/releases/download/v2.1.1/PRIME-2.0.0.dmg"
+        download
+      >
+        <span class="btn-icon"></span>
+        macOS Intel (.dmg)
+      </a>
+
+      <a
+        class="btn-dl btn-mac"
+        href="https://github.com/xhnmakegreat-debug/prime-app/releases/download/v2.1.1/PRIME-2.0.0-arm64.dmg"
+        download
+      >
+        <span class="btn-icon"></span>
+        macOS Apple Silicon (.dmg)
+      </a>
+    </div>
+
+    <p class="version-hint">当前版本 v2.1.1 · Windows x64 / macOS x64 &amp; arm64</p>
+  </section>
+
+  <section class="features">
+    <div class="feat">
+      <div class="feat-title">本地优先</div>
+      <div class="feat-desc">所有数据存储在本机，不上传任何服务器，完全私密。</div>
+    </div>
+    <div class="feat">
+      <div class="feat-title">方向感知</div>
+      <div class="feat-desc">用 embedding 向量对齐你的行为与 Prime 核心方向，自动打分。</div>
+    </div>
+    <div class="feat">
+      <div class="feat-title">不鼓励，只测量</div>
+      <div class="feat-desc">没有徽章，没有连续打卡，没有励志推送——只有清醒的数据。</div>
+    </div>
+    <div class="feat">
+      <div class="feat-title">支持多模型</div>
+      <div class="feat-desc">GLM（智谱）/ Anthropic Claude / 本地 Ollama，自由切换。</div>
+    </div>
+  </section>
+
+  <footer>
+    <a href="https://github.com/xhnmakegreat-debug/prime-app" target="_blank">GitHub</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/xhnmakegreat-debug/prime-app/releases" target="_blank">所有版本</a>
+    &nbsp;·&nbsp;
+    MIT License
+  </footer>
+
+</body>
+</html>
